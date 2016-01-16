@@ -22,7 +22,7 @@
 %   [DZDX, DZDF, DZDB] = VL_NNCONV(X, F, B, DZDY) computes the
 %   derivatives of the block projected onto DZDY. DZDX, DZDF, and
 %   DZDB, and DZDY have the same dimensions as X, F, B, and Y
-%   repsectively. In particular, if B is the empty matrix, then DZDB
+%   respectively. In particular, if B is the empty matrix, then DZDB
 %   is also empty.
 %
 %   VL_NNCONV() implements a special `fully-connected' mode: when the

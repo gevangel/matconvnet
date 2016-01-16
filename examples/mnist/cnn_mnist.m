@@ -1,5 +1,5 @@
 function [net, info] = cnn_mnist(varargin)
-% CNN_MNIST  Demonstrated MatConNet on MNIST
+% CNN_MNIST Demonstrated MatConvNet on MNIST
 
 run(fullfile(fileparts(mfilename('fullpath')),...
   '..', '..', 'matlab', 'vl_setupnn.m')) ;
@@ -30,7 +30,8 @@ else
   save(opts.imdbPath, '-struct', 'imdb') ;
 end
 
-net.meta.classes.name = arrayfun(@(x)sprintf('%d',x),1:10,'UniformOutput',false) ;
+net.meta.classes.name = imdb.meta.classes; 
+% arrayfun(@(x)sprintf('%d',x), 1:10, 'UniformOutput', false) ;
 
 % --------------------------------------------------------------------
 %                                                                Train
@@ -77,7 +78,7 @@ inputs = {'input', images, 'label', labels} ;
 % --------------------------------------------------------------------
 function imdb = getMnistImdb(opts)
 % --------------------------------------------------------------------
-% Preapre the imdb structure, returns image data with mean image subtracted
+% Prepare the imdb structure, returns image data with mean image subtracted
 files = {'train-images-idx3-ubyte', ...
          'train-labels-idx1-ubyte', ...
          't10k-images-idx3-ubyte', ...
@@ -115,10 +116,11 @@ y2=fread(f,inf,'uint8');
 fclose(f) ;
 y2=double(y2(9:end)')+1 ;
 
+% Remove mean estimated from train set 
 set = [ones(1,numel(y1)) 3*ones(1,numel(y2))];
 data = single(reshape(cat(3, x1, x2),28,28,1,[]));
 dataMean = mean(data(:,:,:,set == 1), 4);
-data = bsxfun(@minus, data, dataMean) ;
+data = bsxfun(@minus, data, dataMean);
 
 imdb.images.data = data ;
 imdb.images.data_mean = dataMean;
