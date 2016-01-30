@@ -7,6 +7,7 @@ if isDag
   dagRemoveLayersOfType(net, 'dagnn.DropOut') ;
 else
   net = simpleRemoveLayersOfType(net, 'softmaxloss') ;
+  net = simpleRemoveLayersOfType(net, 'loss') ;
   net = simpleRemoveLayersOfType(net, 'dropout') ;
 end
 

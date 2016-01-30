@@ -87,8 +87,8 @@ end
 %                                                                    Deploy
 % -------------------------------------------------------------------------
 
-net = cnn_imagenet_deploy(net) ;
-modelPath = fullfile(opts.expDir, 'net-deployed.mat')
+net = cnn_imagenet_deploy(net);
+modelPath = fullfile(opts.expDir, 'net-deployed.mat');
 
 switch opts.networkType
   case 'simplenn'

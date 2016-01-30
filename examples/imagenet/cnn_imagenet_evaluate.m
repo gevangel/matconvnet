@@ -24,7 +24,7 @@ display(opts);
 %                                                   Database initialization
 % -------------------------------------------------------------------------
 
-if exist(opts.imdbPath)
+if exist(opts.imdbPath, 'file')
   imdb = load(opts.imdbPath) ;
 else
   imdb = cnn_imagenet_setup_data('dataDir', opts.dataDir, 'lite', opts.lite) ;
@@ -82,7 +82,7 @@ if isDag
     net.renameVar('data', 'input') ;
   end
 
-  % Swtich to test mode
+  % Switch to test mode
   net.mode = 'test' ;
 else
   opts.networkType = 'simplenn' ;

@@ -12,7 +12,7 @@
 %   stack.
 %
 %   F is a SINGLE array of dimension FW x FH x FD x K where (FH,FW)
-%   are the filter height and width and K the number o filters in the
+%   are the filter height and width and K the number of filters in the
 %   bank. D is the depth of each filter and must match the depth D of
 %   X. Alternatively, FD can *divide* the depth D; in this case,
 %   filters are assumed to form G=D/FD *groups* of equal size (where

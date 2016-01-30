@@ -1,8 +1,14 @@
 function net = cnn_mnist_init(varargin)
 % CNN_MNIST_INIT Initialize a CNN, similar to LeNet, for MNIST
-opts.useBatchNorm = true ;
-opts.networkType = 'simplenn' ;
-opts = vl_argparse(opts, varargin) ;
+
+opts.useBatchNorm = true;
+opts.networkType = 'simplenn';
+
+opts.learningRate = 0.001;
+opts.numEpochs = 20;
+opts.batchSize = 100;
+
+opts = vl_argparse(opts, varargin);
 
 rng('default');
 rng(0) ;
@@ -38,6 +44,7 @@ net.layers{end+1} = struct('type', 'conv', ...
                            'pad', 0) ;
 net.layers{end+1} = struct('type', 'loss') ;
 
+
 % optionally switch to batch normalization
 if opts.useBatchNorm
   net = insertBnorm(net, 1) ;
@@ -47,9 +54,9 @@ end
 
 % Meta parameters
 net.meta.inputSize = [28 28 1] ;
-net.meta.trainOpts.learningRate = 0.001 ;
-net.meta.trainOpts.numEpochs = 20 ;
-net.meta.trainOpts.batchSize = 100 ;
+net.meta.trainOpts.learningRate = opts.learningRate;
+net.meta.trainOpts.numEpochs = opts.numEpochs;
+net.meta.trainOpts.batchSize = opts.batchSize;
 
 % Fill in defaul values
 net = vl_simplenn_tidy(net) ;

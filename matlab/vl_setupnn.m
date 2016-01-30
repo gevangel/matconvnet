@@ -16,6 +16,6 @@ addpath(fullfile(root, 'matlab', 'xtest')) ;
 addpath(fullfile(root, 'examples')) ;
 
 if ~exist('gather')
-  warning('The MATLAB Parallel Toolbox does not seem to be installed. Activating compatibility functions.') ;
-  addpath(fullfile(root, 'matlab', 'compatibility', 'parallel')) ;
+    warning('The MATLAB Parallel Toolbox does not seem to be installed. Activating compatibility functions.') ;
+    addpath(fullfile(root, 'matlab', 'compatibility', 'parallel')) ;
 end

@@ -20,9 +20,9 @@
 %   normalization). The constant EPSILON is used to regularize the
 %   computation of sigma(k) and to avoid division by zero.
 %
-%   [DZDX,DZDG,DZDB] = VL_NNBNORM(X,G,B,DZDY) computes the derviatives
+%   [DZDX,DZDG,DZDB] = VL_NNBNORM(X,G,B,DZDY) computes the derivatives
 %   of the block projected onto DZDY. DZDX, DZDG, DZDB and DZDY have
-%   the same dimensions as X, G, B, and Y respectivey.
+%   the same dimensions as X, G, B, and Y respectively.
 %
 %   Optionally, [Y,MEAN,MOMENTS] = VL_NNBNORM(...) and
 %   [DZDX,DZDG,DZDB,MOMENTS] = VL_NNBNORM(...,DZDY) return the values

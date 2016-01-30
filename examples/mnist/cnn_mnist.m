@@ -10,17 +10,16 @@ opts.expDir = fullfile('data','mnist-baseline') ;
 opts.dataDir = 'data/mnist' ;
 opts.imdbPath = fullfile(opts.expDir, 'imdb.mat');
 opts.useBatchNorm = false ;
-opts.networkType = 'simplenn' ;
-opts.train = struct() ;
-opts = vl_argparse(opts, varargin) ;
+opts.networkType = 'simplenn';
+opts.train = struct();
+opts.numEpochs = 20;
+
+opts = vl_argparse(opts, varargin);
 if ~isfield(opts.train, 'gpus'), opts.train.gpus = []; end;
 
 % --------------------------------------------------------------------
 %                                                         Prepare data
 % --------------------------------------------------------------------
-
-net = cnn_mnist_init('useBatchNorm', opts.useBatchNorm, ...
-                     'networkType', opts.networkType) ;
 
 if exist(opts.imdbPath, 'file')
   imdb = load(opts.imdbPath) ;
@@ -29,6 +28,14 @@ else
   mkdir(opts.expDir) ;
   save(opts.imdbPath, '-struct', 'imdb') ;
 end
+
+% --------------------------------------------------------------------
+%                                                       Initialize net
+% --------------------------------------------------------------------
+
+net = cnn_mnist_init('useBatchNorm', opts.useBatchNorm, ...
+    'numEpochs', opts.numEpochs, ...
+    'networkType', opts.networkType) ;
 
 net.meta.classes.name = imdb.meta.classes; 
 % arrayfun(@(x)sprintf('%d',x), 1:10, 'UniformOutput', false) ;
