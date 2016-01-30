@@ -41,8 +41,15 @@ opts.cudnn = true ;
 opts.errorFunction = 'multiclass' ;
 opts.errorLabels = {} ;
 opts.plotDiagnostics = false ;
+
+% Regularization
+opts.useReg = false;
+opts.regParam = 0;
+opts.regType = [];
+
 opts = vl_argparse(opts, varargin) ;
 
+if ~opts.useReg, opts = rmfield(opts, {'regParam', 'regType'}); end
 if ~exist(opts.expDir, 'dir'), mkdir(opts.expDir) ; end
 if isempty(opts.train), opts.train = find(imdb.images.set==1) ; end
 if isempty(opts.val), opts.val = find(imdb.images.set==2) ; end
@@ -75,14 +82,18 @@ if ~evaluateMode
 end
 
 % setup GPUs
-numGpus = numel(opts.gpus) ;
-if numGpus > 1
-    if isempty(gcp('nocreate')),
-        parpool('local',numGpus) ;
-        spmd, gpuDevice(opts.gpus(labindex)), end
+if ~isempty(opts.gpus)
+    numGpus = opts.gpus;
+    if numGpus > 1
+        if isempty(gcp('nocreate')),
+            parpool('local', numGpus) ;
+            spmd, gpuDevice(opts.gpus(labindex)), end
+        end
+    elseif numGpus == 1
+        gpuDevice(opts.gpus)
     end
-elseif numGpus == 1
-    gpuDevice(opts.gpus)
+else
+    numGpus = 0;
 end
 if exist(opts.memoryMapFile, 'file'), delete(opts.memoryMapFile); end
 
@@ -116,7 +127,7 @@ if start >= 1
     net = vl_simplenn_tidy(net) ; % just in case MatConvNet was updated
 end
 
-for epoch=start+1:opts.numEpochs
+for epoch = start+1:opts.numEpochs
     
     % train one epoch and validate
     learningRate = opts.learningRate(min(epoch, numel(opts.learningRate))) ;
@@ -124,7 +135,7 @@ for epoch=start+1:opts.numEpochs
     val = opts.val ;
     
     if numGpus <= 1
-        [net,stats.train, prof] = process_epoch(opts, getBatch, epoch, train, learningRate, imdb, net) ;
+        [net, stats.train, prof] = process_epoch(opts, getBatch, epoch, train, learningRate, imdb, net) ;
         [~, stats.val] = process_epoch(opts, getBatch, epoch, val, 0, imdb, net) ;
         if opts.profile
             profile('viewer') ;
@@ -133,7 +144,7 @@ for epoch=start+1:opts.numEpochs
     else
         fprintf('%s: sending model to %d GPUs\n', mfilename, numGpus) ;
         spmd(numGpus)
-            [net_, stats_train_,prof_] = process_epoch(opts, getBatch, epoch, train, learningRate, imdb, net) ;
+            [net_, stats_train_, prof_] = process_epoch(opts, getBatch, epoch, train, learningRate, imdb, net) ;
             [~, stats_val_] = process_epoch(opts, getBatch, epoch, val, 0, imdb, net_) ;
         end
         net = net_{1} ;
@@ -151,16 +162,27 @@ for epoch=start+1:opts.numEpochs
     for f = sets
         f = char(f) ;
         n = numel(eval(f)) ;
-        info.(f).speed(epoch) = n / stats.(f)(1) * max(1, numGpus) ;
-        info.(f).objective(epoch) = stats.(f)(2) / n ;
-        info.(f).error(:,epoch) = stats.(f)(3:end) / n ;
+        
+        % debug: keep track of regularization value 
+        if opts.useReg
+            info.(f).reg(epoch) = stats.(f)(end)/n;
+            stats.(f)(end) = []; 
+        end
+        
+        info.(f).speed(epoch) = n / stats.(f)(1) * max(1, numGpus);
+        info.(f).objective(epoch) = stats.(f)(2) / n;
+        info.(f).error(:,epoch) = stats.(f)(3:end) / n;    
     end
+    
     if ~evaluateMode
         fprintf('%s: saving model for epoch %d\n', mfilename, epoch) ;
         tic ;
         save(modelPath(epoch), 'net', 'info') ;
         fprintf('%s: model saved in %.2g s\n', mfilename, toc) ;
     end
+    
+    % show/update plot of training progress
+    printFig = true; 
     
     figure(1) ; clf ;
     hasError = isa(opts.errorFunction, 'function_handle') ;
@@ -189,8 +211,12 @@ for epoch=start+1:opts.numEpochs
         xlabel('training epoch') ; ylabel('error') ;
         title('error') ;
     end
-    drawnow ;
-    print(1, modelFigPath, '-dpdf') ;
+    drawnow;  
+    
+    if printFig
+        print(1, modelFigPath, '-dpdf') ;
+    end
+    
 end
 
 % -------------------------------------------------------------------------
@@ -233,8 +259,8 @@ function  [net_cpu,stats,prof] = process_epoch(opts, getBatch, epoch, subset, le
 % -------------------------------------------------------------------------
 
 % move CNN to GPU as needed
-numGpus = numel(opts.gpus) ;
-if numGpus >= 1
+% numGpus = numel(opts.gpus) ;
+if ~isempty(opts.gpus) && opts.gpus >= 1
     net = vl_simplenn_move(net_cpu, 'gpu') ;
 else
     net = net_cpu ;
@@ -306,19 +332,40 @@ for t=1:opts.batchSize:numel(subset)
         % evaluate the CNN
         net.layers{end}.class = labels ;
         if training, dzdy = one; else dzdy = [] ; end
-        res = vl_simplenn(net, im, dzdy, res, ...
-            'accumulate', s ~= 1, ...
+        
+        % additional options for training 
+        varargin_simplenn =  {'accumulate', s ~= 1, ...
             'mode', evalMode, ...
             'conserveMemory', opts.conserveMemory, ...
             'backPropDepth', opts.backPropDepth, ...
             'sync', opts.sync, ...
-            'cudnn', opts.cudnn) ;
+            'cudnn', opts.cudnn}; 
         
+        % regularization
+        if opts.useReg % isfield(opts, 'regType') && ~isempty(opts.regType)
+            varargin_simplenn = {varargin_simplenn{:}, ...
+                'useReg', opts.useReg, ...
+                'regType', opts.regType, ...
+                'regParam', opts.regParam, ...
+                'gpus', opts.gpus};
+        end
+            
+        res = vl_simplenn(net, im, dzdy, res, varargin_simplenn{:});
+        
+        err_current = [sum(double(gather(res(end).x))); ...
+            reshape(opts.errorFunction(opts, labels, res),[],1)];
+        
+        % Regularizer 'error'
+        % err_reg = 0;
+        if opts.useReg
+            err_reg = double(gather(res(end).reg));
+            err_current = [err_current ; err_reg];
+        end
+                         
         % accumulate training errors
-        error = sum([error, [...
-            sum(double(gather(res(end).x))) ;
-            reshape(opts.errorFunction(opts, labels, res),[],1) ; ]],2) ;
+        error = sum([error, err_current], 2);        
         numDone = numDone + numel(batch) ;
+    
     end % next sub-batch
     
     % gather and accumulate gradients across labs

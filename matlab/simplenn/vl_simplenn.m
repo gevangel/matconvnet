@@ -1,7 +1,7 @@
 function res = vl_simplenn(net, x, dzdy, res, varargin)
 %VL_SIMPLENN  Evaluate a SimpleNN network.
 %   RES = VL_SIMPLENN(NET, X) evaluates the convnet NET on data X.
-%   RES = VL_SIMPLENN(NET, X, DZDY) evaluates the convnent NET and its
+%   RES = VL_SIMPLENN(NET, X, DZDY) evaluates the convnen NET and its
 %   derivative on data X and output derivative DZDY.
 %
 %   This function process networks using the SimpleNN wrapper
@@ -212,6 +212,13 @@ opts.mode = 'normal' ;
 opts.accumulate = false ;
 opts.cudnn = true ;
 opts.backPropDepth = +inf ;
+
+% Regularization
+opts.useReg = false;
+opts.regType = [];
+opts.regParam = 0;
+opts.gpus = [];
+
 opts = vl_argparse(opts, varargin);
 
 n = numel(net.layers) ;
@@ -258,8 +265,7 @@ for i=1:n
     l = net.layers{i} ;
     res(i).time = tic ;
     switch l.type
-        case 'conv'
-            
+        case 'conv'            
             res(i+1).x = vl_nnconv(res(i).x, l.weights{1}, l.weights{2}, ...
                 'pad', l.pad, ...
                 'stride', l.stride, ...
@@ -290,9 +296,22 @@ for i=1:n
         case 'loss'
             res(i+1).x = vl_nnloss(res(i).x, l.class) ;
             
+            % add regularization term contribution
+            if opts.useReg
+                res(i+1).reg = vl_nnreg(net, 'regType', opts.regType, 'gpus', opts.gpus);
+                res(i+1).x = res(i+1).x + opts.regParam * res(i+1).reg;
+            end
+            
         case 'softmaxloss'
             res(i+1).x = vl_nnsoftmaxloss(res(i).x, l.class) ;
+            % res(i+1) = vl_nnloss(res(i).x, l.class, 'type', 'softmaxlog');
             
+            % add regularization term contribution
+            if opts.useReg
+                res(i+1).reg = vl_nnreg(net, 'regType', opts.regType, 'gpus', opts.gpus);
+                res(i+1).x = res(i+1).x + opts.regParam * res(i+1).reg;
+            end     
+                        
         case 'relu'
             if l.leak > 0, leak = {'leak', l.leak} ; else leak = {} ; end
             res(i+1).x = vl_nnrelu(res(i).x,[],leak{:}) ;
@@ -364,9 +383,12 @@ if doder
                     l.opts{:}, ...
                     cudnn{:}) ;
                 
-                % GE: adding regularization only on the weights/not biases
-                lambda = 0; %.01;
-                dzdw{1} =  dzdw{1} + 2*lambda *dzdw{1};
+                % Regularization/Weight Gradient (only on the weights/not biases)
+                if opts.useReg
+                    if ~strcmp(opts.regType, 'sym') || i~=n-1 % for sym reg. not on the classifier, i.e. penultimate layer
+                        dzdw{1} =  dzdw{1} + opts.regParam*vl_nnreg(l.weights{1}, 'regType', opts.regType, 'gpus', opts.gpus);
+                    end
+                end
                 
             case 'convt'
                 [res(i).dzdx, dzdw{1}, dzdw{2}] = ...

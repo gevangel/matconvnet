@@ -42,3 +42,7 @@ doc/site/theme/js/npm.js
 *.opensdf
 doc/figures/svg/*.idraw
 
+# GE fork ignores
+models
+scrap
+
