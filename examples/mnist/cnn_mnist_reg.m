@@ -1,8 +1,8 @@
 function [net, info] = cnn_mnist_reg(varargin)
 % CNN_MNIST Demonstrated MatConvNet on MNIST
 
-run(fullfile(fileparts(mfilename('fullpath')),...
-    '..', '..', 'matlab', 'vl_setupnn.m')) ;
+%run(fullfile(fileparts(mfilename('fullpath')),...
+%    '..', '..', 'matlab', 'vl_setupnn.m')) ;
 
 opts.expDir = fullfile('data','mnist-baseline');
 [opts, varargin] = vl_argparse(opts, varargin);
@@ -20,7 +20,7 @@ opts.batchSize = 400;
 opts.useReg = true;
 if opts.useReg
     opts.regType = 'sym'; %'l2';
-    opts.regParam = 100000;
+    opts.regParam = 100;
 end
 
 opts = vl_argparse(opts, varargin);

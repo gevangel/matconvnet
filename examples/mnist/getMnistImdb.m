@@ -1,6 +1,6 @@
 % Prepare the imdb structure, returns image data with mean image subtracted
 %
-% Taken from matconvnet: cnn_mnist.m
+% Extracted as a separate function file from matconvnet: cnn_mnist.m
 
 function imdb = getMnistImdb(opts)
 

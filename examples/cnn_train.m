@@ -41,6 +41,7 @@ opts.cudnn = true ;
 opts.errorFunction = 'multiclass' ;
 opts.errorLabels = {} ;
 opts.plotDiagnostics = false ;
+opts.showPlot = true ;  
 
 % Regularization
 opts.useReg = false;
@@ -118,7 +119,6 @@ end
 % -------------------------------------------------------------------------
 
 modelPath = @(ep) fullfile(opts.expDir, sprintf('net-epoch-%d.mat', ep));
-modelFigPath = fullfile(opts.expDir, 'net-train.pdf') ;
 
 start = opts.continue * findLastCheckpoint(opts.expDir) ;
 if start >= 1
@@ -129,7 +129,7 @@ end
 
 for epoch = start+1:opts.numEpochs
     
-    % train one epoch and validate
+    %% train one epoch and validate
     learningRate = opts.learningRate(min(epoch, numel(opts.learningRate))) ;
     train = opts.train(randperm(numel(opts.train))) ; % shuffle
     val = opts.val ;
@@ -157,7 +157,7 @@ for epoch = start+1:opts.numEpochs
         clear net_ stats_train_ stats_val_ ;
     end
     
-    % save
+    %% save
     if evaluateMode, sets = {'val'} ; else sets = {'train', 'val'} ; end
     for f = sets
         f = char(f) ;
@@ -181,42 +181,46 @@ for epoch = start+1:opts.numEpochs
         fprintf('%s: model saved in %.2g s\n', mfilename, toc) ;
     end
     
-    % show/update plot of training progress
-    printFig = true; 
-    
-    figure(1) ; clf ;
-    hasError = isa(opts.errorFunction, 'function_handle') ;
-    subplot(1,1+hasError,1) ;
-    if ~evaluateMode
-        semilogy(1:epoch, info.train.objective, '.-', 'linewidth', 2) ;
-        hold on ;
-    end
-    semilogy(1:epoch, info.val.objective, '.--') ;
-    xlabel('training epoch') ; ylabel('energy') ;
-    grid on ;
-    h=legend(sets) ;
-    set(h,'color','none');
-    title('objective') ;
-    if hasError
-        subplot(1,2,2) ; leg = {} ;
+    %% show/update plot of training progress
+    % TO-DO: make this an opts argument 
+    if opts.showPlot 
+        lw = 2; printFig = true;
+        
+        figure(1) ; clf ;
+        hasError = isa(opts.errorFunction, 'function_handle') ;
+        subplot(1,1+hasError,1) ;
         if ~evaluateMode
-            plot(1:epoch, info.train.error', '.-', 'linewidth', 2) ;
+            semilogy(1:epoch, info.train.objective, '.-', 'linewidth', lw) ;
             hold on ;
-            leg = horzcat(leg, strcat('train ', opts.errorLabels)) ;
         end
-        plot(1:epoch, info.val.error', '.--') ;
-        leg = horzcat(leg, strcat('val ', opts.errorLabels)) ;
-        set(legend(leg{:}),'color','none') ;
+        semilogy(1:epoch, info.val.objective, '.--') ;
+        xlabel('training epoch') ; ylabel('energy') ;
         grid on ;
-        xlabel('training epoch') ; ylabel('error') ;
-        title('error') ;
-    end
-    drawnow;  
-    
-    if printFig
-        print(1, modelFigPath, '-dpdf') ;
-    end
-    
+        h=legend(sets) ;
+        set(h,'color','none');
+        title('objective') ;
+        if hasError
+            subplot(1,2,2) ; leg = {} ;
+            if ~evaluateMode
+                plot(1:epoch, info.train.error', '.-', 'linewidth', lw) ;
+                hold on ;
+                leg = horzcat(leg, strcat('train ', opts.errorLabels)) ;
+            end
+            plot(1:epoch, info.val.error', '.--') ;
+            leg = horzcat(leg, strcat('val ', opts.errorLabels)) ;
+            set(legend(leg{:}),'color','none') ;
+            grid on ;
+            xlabel('training epoch') ; ylabel('error') ;
+            title('error') ;
+        end
+        drawnow;
+                
+        if printFig
+            modelFigPath = fullfile(opts.expDir, 'net-train.pdf') ;
+            print(1, modelFigPath, '-dpdf') ;
+        end
+        
+    end    
 end
 
 % -------------------------------------------------------------------------
