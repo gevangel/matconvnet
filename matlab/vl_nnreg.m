@@ -14,23 +14,31 @@ function Y = vl_nnreg(varargin)
 %
 %   l1/Sparse:: `l1`
 %
-%   Symmetry/Orbits:: `sym`
+%   Single Orbit:: `orb`
+%
+%   Multiple Orbits:: `morb`
 
 opts.regType = 'l2';
 opts.gpus = [];
+
+% morb regularization options
+opts.groups = [];
+opts.groupSize = [];
+
 opts = vl_argparse(opts, varargin(2:end));
+s = 0.01; % orbit reg. parameter
 
 if isstruct(varargin{1}) % opts.compGrad
+    
     % Forward pass: Loss term computation
     net = varargin{1};
-    n = numel(net.layers);
-    
+    n = numel(net.layers);    
     Y = 0;
+    
     switch lower(opts.regType)
         case 'l2'
-            for i=1:n
-                l = net.layers{i};
-                if strcmp(l.type, 'conv')
+            for l=1:n
+                if strcmp(net.layers{l}.type, 'conv')
                     Y = Y + 0.5*sum(sum(sum((net.layers{1}.weights{1}).^2))); % Frobenius squared
                 end
             end
@@ -38,14 +46,13 @@ if isstruct(varargin{1}) % opts.compGrad
             % do nothing for now
             % Yr = Yr + sum(sum(sum(abs(net.layers{1}.weights{1})))); % Frobenius squared
             
-        case 'sym'
+        case 'orb'
             % Orbit regularizer: only apply on the representation, not the
             % classifier weights
-            for i=1:n
-                l = net.layers{i}; 
-                s = 0.01; % reg. parameter
-                if strcmp(l.type, 'conv') && i~=n-1                    
-                    F = l.weights{1};
+            for l=1:n
+
+                if strcmp(net.layers{l}.type, 'conv') && l~=n-1                    
+                    F = net.layers{l}.weights{1};
                     weightSize = [size(F,1) size(F,2) size(F,3) size(F,4)];
                     
                     k = weightSize(4); 
@@ -62,25 +69,57 @@ if isstruct(varargin{1}) % opts.compGrad
                 end
             end
             
+          case 'morb'
+            % Multiple orbit regularizer
+            Y = 0;
+            for l=1:n              
+                
+                if strcmp(net.layers{l}.type, 'conv') && l~=n-1                    
+                    F = net.layers{l}.weights{1};
+                    nGroups = unique(net.layers{l}.groups); % number of orbits in layer
+                    
+                    weightSize = [size(F,1) size(F,2) size(F,3) size(F,4)];
+                    volWeightTensor = weightSize(1)*weightSize(2)*weightSize(3);
+                    
+                    % auxiliary matrix
+                    k = net.layers{1}.groupSize;
+                    if ~isempty(opts.gpus) && opts.gpus >= 1
+                        Ik = gpuArray(eye(k));
+                        % Ik = gpuArray.speye(k);
+                    else
+                        Ik = sparse(eye(k)); %Ik = eye(k);
+                    end
+                    E = kron(Ik, ones(k));
+                    
+                    % vectorize the weight tensor/cube 
+                    W = reshape(F, [volWeightTensor, weightSize(4)]); 
+                    
+                    % sum over each groups/orbits
+                    for g=nGroups
+                        Y = Y + regW(W(:, net.layers{l}.groups==g), k, s, E);
+                    end
+                    % Y = regW_mult(W, net.layers{l}.groups, k, s, E);
+                end
+            end   
+            
         otherwise
             error('Unknown regularizer ''%s''.', opts.regType);
     end
     
 else
     % Backward pass: Gradient of regularizer (to be added to dz/dw)
-    l = varargin{1};
+    grad_in = varargin{1};
     
     switch lower(opts.regType)
         case 'l2'
-            Y = l;
+            Y = grad_in;
         case 'l1'
             % do nothing for now
             
-        case 'sym'
+        case 'orb'
             % Orbit regularizer
-            F = l;
+            F = grad_in;
             weightSize = [size(F,1) size(F,2) size(F,3) size(F,4)];
-            s = 0.01; % reg. parameter
             %if weightSize(1)~=1 && weightSize(2)~=1
             k = weightSize(4);
             
@@ -95,7 +134,7 @@ else
                 % Ik = gpuArray.speye(k);
             else
                 Ik = sparse(eye(k)); %Ik = eye(k);
-            end            
+            end
             CRt = R'*C';
             E = kron(Ik, ones(k));
             
@@ -114,6 +153,43 @@ else
             %else
             %    Y = 0;
             %end
+                        
+        case 'morb'
+            % Multiple orbit regularizer
+                        
+            F = grad_in;
+            
+            weightSize = [size(F,1) size(F,2) size(F,3) size(F,4)];
+            W = reshape(F(:,:,:,:), [weightSize(1)*weightSize(2), weightSize(3), weightSize(4)]);
+            Y = zeros(weightSize(1), weightSize(2), weightSize(3), weightSize(4));            
+            nGroups = unique(opts.groups); % number of orbits in layer
+            k = opts.groupSize;   
+                    
+            % create the auxiliary matrices
+            % TO-DO: this should be external from this function also!
+            [C, R] = gradW_opt_aux(k);
+            
+            if ~isempty(opts.gpus) && opts.gpus >= 1
+                C = gpuArray(C);
+                R = gpuArray(R);
+                Ik = gpuArray(eye(k));
+                % Ik = gpuArray.speye(k);
+                Y = gpuArray(Y);
+            else
+                Ik = sparse(eye(k)); %Ik = eye(k);                
+            end
+            CRt = R'*C';
+            E = kron(Ik, ones(k));            
+                       
+            % iterate over filter dimensions
+            for d = 1:weightSize(3)
+                % iterate over groups
+                for g=1:nGroups
+                    ind_g = opts.groups==g;
+                    vecG = gradW_opt_1(double(squeeze(W(:, d, ind_g))), k, s, Ik, E, CRt);                                      
+                    Y(:,:,d,ind_g) = reshape(vecG, [weightSize(1), weightSize(2), 1, k]);
+                end
+            end            
             
         otherwise
             error('Unknown regularizer ''%s''.', opts.regType);

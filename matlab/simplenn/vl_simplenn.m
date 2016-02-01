@@ -385,8 +385,17 @@ if doder
                 
                 % Regularization/Weight Gradient (only on the weights/not biases)
                 if opts.useReg
-                    if ~strcmp(opts.regType, 'sym') || i~=n-1 % for sym reg. not on the classifier, i.e. penultimate layer     
-                        dzdw_reg = vl_nnreg(l.weights{1}, 'regType', opts.regType, 'gpus', opts.gpus);
+                    if strcmp(opts.regType, 'l2') || i~=n-1 % for sym reg. not on the classifier, i.e. penultimate layer     
+                        
+                        varargin_reg = {'regType', opts.regType, 'gpus', opts.gpus};
+                        
+                        if strcmp(opts.regType, 'morb')
+                            % multiple orbits grouping
+                            varargin_reg = [varargin_reg{:}, {'groups', net.layers{i}.groups, 'groupSize', net.layers{i}.groupSize}];  
+                        end
+                        
+                        dzdw_reg = vl_nnreg(l.weights{1}, varargin_reg{:});
+                                                
                         % multiply by batch size: gradient vector is divided by it during weight update  
                         dzdw{1} =  dzdw{1} + opts.regParam*net.meta.trainOpts.batchSize*dzdw_reg;
                     end

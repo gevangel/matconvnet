@@ -15,9 +15,9 @@ opts.batchSize = 100;
 
 opts = vl_argparse(opts, varargin);
 
-% rng('default');
-% rng(0);
-rng('shuffle')
+rng('default');
+rng(0);
+% rng('shuffle')
 
 f = 1/100;
 net.layers = {};

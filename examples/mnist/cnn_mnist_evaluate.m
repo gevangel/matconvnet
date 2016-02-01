@@ -6,20 +6,22 @@ function info = cnn_mnist_evaluate(varargin)
 
 % opts.dataDir = '/media/gevang/Data/data/MNIST/idx' ;
 % opts.expDir = fullfile('/media/gevang/Data/work/code/cbcl/matconvnet/', 'data/test-mnist-simplenn');
-opts.expDir = fullfile('data','mnist-baseline');
+opts.expDir = fullfile('data','mnist');
 [opts, varargin] = vl_argparse(opts, varargin);
 
 opts.imdbPath = fullfile(opts.expDir, 'imdb.mat');
 opts.modelPath = fullfile(opts.expDir, 'mnist-cnn.mat');
 
-opts.networkType = [] ;
-opts.numFetchThreads = 12 ;
+opts.networkType = [];
+% opts.numFetchThreads = 12 ;
 
-opts.train.batchSize = 100 ;
-opts.train.numEpochs = 1 ;
-opts.train.gpus = [] ;
+opts.train.batchSize = 100;
+opts.train.numEpochs = 1;
+opts.train.gpus = [];
+opts.train.continue = false;
 opts.train.prefetch = true;
 opts.train.expDir = opts.expDir;
+opts.train.showPlot = false; 
 
 opts = vl_argparse(opts, varargin) ;
 display(opts);
@@ -51,6 +53,8 @@ trainfn = @cnn_train ;
 net.layers{end}.type = 'softmaxloss' ; % softmax -> softmaxloss
 
 % Run evaluation
+% net.meta.trainOpts.numEpochs = net.meta.trainOpts.numEpochs + 1;
+
 [~, info] = trainfn(net, imdb, getBatch(opts), ...
     'expDir', opts.expDir, ...
     opts.train, ...

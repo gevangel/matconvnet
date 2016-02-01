@@ -14,14 +14,14 @@ opts.networkType = 'simplenn';
 opts.modelType = 'cnn_1_layer';  
 opts.train = struct();
 opts.numEpochs = 20;
-opts.batchSize = 400;
+opts.batchSize = 300;
 
 % Regularization
 opts.useReg = true;
-if opts.useReg
-    opts.regType = 'sym'; %'l2';
-    opts.regParam = 100;
-end
+%if opts.useReg
+opts.regType = 'orb'; %'l2';
+opts.regParam = 10;
+%end
 
 opts = vl_argparse(opts, varargin);
 
@@ -63,6 +63,29 @@ if opts.useReg
     net.meta.trainOpts.regParam = opts.regParam;
     net.meta.trainOpts.regType = opts.regType;
     net.meta.trainOpts.weightDecay = 0; % zero explicit weight decay
+    
+    if strcmp(opts.regType, 'morb')
+        % Parameters for multiple orbits
+        n = length(net.layers);
+        % groupSize = 5; % same across layers
+        m = 5; % number of orbits: for now same in all layers
+        for l=1:n
+            if strcmp(net.layers{l}.type, 'conv') && l~=n-1
+               nFiltersLayer = size(net.layers{l}.weights{1}, 4);
+               
+               if mod(nFiltersLayer, m)
+                   setm = m*ones(1, nFiltersLayer); 
+                   setm(1, mod(nFiltersLayer, m)*m) = kron(1:m-1, ones(1, mod(nFiltersLayer, m)*m));
+               else
+                   setm = kron(1:m, ones(1, nFiltersLayer/m));
+               end                                 
+              
+               % m = length(setm); 
+               net.layers{l}.groups = setm;
+               net.layers{l}.groupSize = nFiltersLayer/m;
+            end
+        end        
+    end
 end
 
 net.meta.classes.name = imdb.meta.classes;
@@ -81,7 +104,8 @@ end
     'expDir', opts.expDir, ...
     net.meta.trainOpts, ...
     opts.train, ...
-    'val', find(imdb.images.set == 3)) ;
+    'train', find(imdb.images.set == 1),...
+    'val', find(imdb.images.set == 2));
 
 % --------------------------------------------------------------------
 function fn = getBatch(opts)

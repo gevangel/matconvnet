@@ -27,8 +27,10 @@ x2 = load(fullfile(opts.dataDir, files{2}));
 y2 = x2(:, end) + 1;
 x2 = x2(:, 1:end-1);
 
+% Last 2K from train are validation set (in original paper)
+set = [ones(1, numel(y1) - 2000) 2*ones(1, 2000) 3*ones(1, numel(y2))];
+
 % Remove mean estimated from train set
-set = [ones(1, numel(y1)) 3*ones(1, numel(y2))];
 data = single(reshape(cat(1, x1, x2)', 28, 28, 1, []));
 dataMean = mean(data(:,:,:,set == 1), 4);
 data = bsxfun(@minus, data, dataMean);
