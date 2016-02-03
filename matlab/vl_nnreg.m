@@ -17,6 +17,8 @@ function Y = vl_nnreg(varargin)
 %   Single Orbit:: `orb`
 %
 %   Multiple Orbits:: `morb`
+%
+%   Multiple Orbits with sum regularizer: `sreg`
 
 opts.regType = 'l2';
 opts.gpus = [];
@@ -32,7 +34,7 @@ if isstruct(varargin{1}) % opts.compGrad
     
     % Forward pass: Loss term computation
     net = varargin{1};
-    n = numel(net.layers);    
+    n = numel(net.layers);
     Y = 0;
     
     switch lower(opts.regType)
@@ -50,12 +52,12 @@ if isstruct(varargin{1}) % opts.compGrad
             % Orbit regularizer: only apply on the representation, not the
             % classifier weights
             for l=1:n
-
-                if strcmp(net.layers{l}.type, 'conv') && l~=n-1                    
+                
+                if strcmp(net.layers{l}.type, 'conv') && l~=n-1
                     F = net.layers{l}.weights{1};
                     weightSize = [size(F,1) size(F,2) size(F,3) size(F,4)];
                     
-                    k = weightSize(4); 
+                    k = weightSize(4);
                     
                     % vectorize the weight tensor/cube
                     W = reshape(F(:,:,:,:), [weightSize(1)*weightSize(2)*weightSize(3), k]);
@@ -69,12 +71,12 @@ if isstruct(varargin{1}) % opts.compGrad
                 end
             end
             
-          case 'morb'
+        case 'morb'
             % Multiple orbit regularizer
             Y = 0;
-            for l=1:n              
+            for l=1:n
                 
-                if strcmp(net.layers{l}.type, 'conv') && l~=n-1                    
+                if strcmp(net.layers{l}.type, 'conv') && l~=n-1
                     F = net.layers{l}.weights{1};
                     nGroups = unique(net.layers{l}.groups); % number of orbits in layer
                     
@@ -91,8 +93,8 @@ if isstruct(varargin{1}) % opts.compGrad
                     end
                     E = kron(Ik, ones(k));
                     
-                    % vectorize the weight tensor/cube 
-                    W = reshape(F, [volWeightTensor, weightSize(4)]); 
+                    % vectorize the weight tensor/cube
+                    W = reshape(F, [volWeightTensor, weightSize(4)]);
                     
                     % sum over each groups/orbits
                     for g=nGroups
@@ -100,7 +102,27 @@ if isstruct(varargin{1}) % opts.compGrad
                     end
                     % Y = regW_mult(W, net.layers{l}.groups, k, s, E);
                 end
-            end   
+            end
+            
+        case 'sreg'
+            % Multiple orbit regularizer using sum
+            Y = 0;
+            for l=1:n
+                
+                if strcmp(net.layers{l}.type, 'conv') && l~=n-1
+                    F = net.layers{l}.weights{1};
+                    % nGroups = unique(net.layers{l}.groups); % number of orbits in layer
+                    weightSize = [size(F,1) size(F,2) size(F,3) size(F,4)];
+                    volWeightTensor = weightSize(1)*weightSize(2)*weightSize(3);
+                    
+                    k = net.layers{1}.groupSize;
+                    
+                    % vectorize the weight tensor/cube
+                    W = reshape(F, [volWeightTensor, weightSize(4)]);
+                    
+                    Y = Y + sregW_mult_cross(W, net.layers{l}.groups, k);
+                end
+            end
             
         otherwise
             error('Unknown regularizer ''%s''.', opts.regType);
@@ -114,10 +136,10 @@ else
         case 'l2'
             Y = grad_in;
         case 'l1'
-            % do nothing for now
+            %% do nothing for now
             
         case 'orb'
-            % Orbit regularizer
+            %% (Single/global) orbit regularizer
             F = grad_in;
             weightSize = [size(F,1) size(F,2) size(F,3) size(F,4)];
             %if weightSize(1)~=1 && weightSize(2)~=1
@@ -153,18 +175,17 @@ else
             %else
             %    Y = 0;
             %end
-                        
+            
         case 'morb'
-            % Multiple orbit regularizer
-                        
+            %% Multiple orbit regularizer
             F = grad_in;
             
             weightSize = [size(F,1) size(F,2) size(F,3) size(F,4)];
             W = reshape(F(:,:,:,:), [weightSize(1)*weightSize(2), weightSize(3), weightSize(4)]);
-            Y = zeros(weightSize(1), weightSize(2), weightSize(3), weightSize(4));            
-            nGroups = unique(opts.groups); % number of orbits in layer
-            k = opts.groupSize;   
-                    
+            Y = zeros(weightSize(1), weightSize(2), weightSize(3), weightSize(4));
+            k = opts.groupSize;
+            nGroups = length(unique(opts.groups)); % number of orbits in layer
+            
             % create the auxiliary matrices
             % TO-DO: this should be external from this function also!
             [C, R] = gradW_opt_aux(k);
@@ -176,20 +197,46 @@ else
                 % Ik = gpuArray.speye(k);
                 Y = gpuArray(Y);
             else
-                Ik = sparse(eye(k)); %Ik = eye(k);                
+                Ik = sparse(eye(k)); %Ik = eye(k);
             end
             CRt = R'*C';
-            E = kron(Ik, ones(k));            
-                       
+            E = kron(Ik, ones(k));
+            
             % iterate over filter dimensions
             for d = 1:weightSize(3)
+                Wd = double(squeeze(W(:, d, :)));
                 % iterate over groups
-                for g=1:nGroups
-                    ind_g = opts.groups==g;
-                    vecG = gradW_opt_1(double(squeeze(W(:, d, ind_g))), k, s, Ik, E, CRt);                                      
-                    Y(:,:,d,ind_g) = reshape(vecG, [weightSize(1), weightSize(2), 1, k]);
-                end
-            end            
+                vecG = gradW_opt_1_mult(Wd, opts.groups, k, s, Ik, E, CRt);
+                Y(:,:,d,:) = reshape(vecG, [weightSize(1), weightSize(2), 1, k*nGroups]);
+            end
+            
+        case 'sreg'
+            %% Multiple orbit SUM-regularizer
+            F = grad_in;
+            
+            weightSize = [size(F,1) size(F,2) size(F,3) size(F,4)];
+            W = reshape(F(:,:,:,:), [weightSize(1)*weightSize(2), weightSize(3), weightSize(4)]);
+            k = opts.groupSize;
+            nGroups = length(unique(opts.groups)); % number of orbits in layer
+            
+            % create the auxiliary matrices
+            % TO-DO: this should be external from this function also!
+            Jk = ones(k);
+            R = -Jk + (k)*eye(k);
+            
+            if ~isempty(opts.gpus) && opts.gpus >= 1
+                Jk = gpuArray(Jk);
+                R = gpuArray(R);
+            end
+            
+            % iterate over filter dimensions
+            for d = 1:weightSize(3)
+                Wd = double(squeeze(W(:, d, :)));
+                % iterate over groups
+                vecG = sgradW_mult_cross(Wd, opts.groups, k, Jk, R);
+                Y(:,:,d,:) = reshape(vecG, [weightSize(1), weightSize(2), 1, k*nGroups]);
+            end
+            
             
         otherwise
             error('Unknown regularizer ''%s''.', opts.regType);

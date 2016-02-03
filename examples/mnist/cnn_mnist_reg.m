@@ -64,7 +64,7 @@ if opts.useReg
     net.meta.trainOpts.regType = opts.regType;
     net.meta.trainOpts.weightDecay = 0; % zero explicit weight decay
     
-    if strcmp(opts.regType, 'morb')
+    if strcmp(opts.regType, 'morb') || strcmp(opts.regType, 'sreg')
         % Parameters for multiple orbits
         n = length(net.layers);
         % groupSize = 5; % same across layers
@@ -82,8 +82,13 @@ if opts.useReg
               
                % m = length(setm); 
                net.layers{l}.groups = setm;
-               net.layers{l}.groupSize = nFiltersLayer/m;
+               net.layers{l}.groupSize = nFiltersLayer/m;            
+                         
             end
+            % Add goup info to the maxout layer
+             if strcmp(net.layers{l}.type, 'maxout')
+                 net.layers{l}.groups = setm;
+             end            
         end        
     end
 end

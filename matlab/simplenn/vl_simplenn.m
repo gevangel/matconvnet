@@ -332,6 +332,15 @@ for i=1:n
                 [res(i+1).x, res(i+1).aux] = vl_nndropout(res(i).x, 'rate', l.rate) ;
             end
             
+        case 'maxout'
+            % either define groupSize (i.e. in opts) or use .groups from previous layer
+            if ~isfield(l, 'groups')
+                % if grouping of weights is not provided, groupSize is used
+                % from the net definition (standard maxout)
+                l.groups = [];
+            end
+            [res(i+1).x, res(i+1).aux] = vl_nnmaxout(res(i).x, 'groupSize', l.groupSize, 'groups', l.groups);
+            
         case 'bnorm'
             if testMode
                 res(i+1).x = vl_nnbnorm(res(i).x, l.weights{1}, l.weights{2}, 'moments', l.weights{3}) ;
@@ -385,18 +394,18 @@ if doder
                 
                 % Regularization/Weight Gradient (only on the weights/not biases)
                 if opts.useReg
-                    if strcmp(opts.regType, 'l2') || i~=n-1 % for sym reg. not on the classifier, i.e. penultimate layer     
+                    if strcmp(opts.regType, 'l2') || i~=n-1 % for sym reg. not on the classifier, i.e. penultimate layer
                         
                         varargin_reg = {'regType', opts.regType, 'gpus', opts.gpus};
                         
-                        if strcmp(opts.regType, 'morb')
+                        if strcmp(opts.regType, 'morb') || strcmp(opts.regType, 'sreg')
                             % multiple orbits grouping
-                            varargin_reg = [varargin_reg{:}, {'groups', net.layers{i}.groups, 'groupSize', net.layers{i}.groupSize}];  
+                            varargin_reg = [varargin_reg{:}, {'groups', l.groups, 'groupSize', l.groupSize}];
                         end
                         
                         dzdw_reg = vl_nnreg(l.weights{1}, varargin_reg{:});
-                                                
-                        % multiply by batch size: gradient vector is divided by it during weight update  
+                        
+                        % multiply by batch size: gradient vector is divided by it during weight update
                         dzdw{1} =  dzdw{1} + opts.regParam*net.meta.trainOpts.batchSize*dzdw_reg;
                     end
                 end
@@ -455,6 +464,10 @@ if doder
                     res(i).dzdx = vl_nndropout(res(i).x, res(i+1).dzdx, ...
                         'mask', res(i+1).aux) ;
                 end
+            
+            case 'maxout'   
+
+                res(i).dzdx = vl_nnmaxout(res(i).x, res(i+1).aux, res(i+1).dzdx);      
                 
             case 'bnorm'
                 [res(i).dzdx, dzdw{1}, dzdw{2}, dzdw{3}] = ...

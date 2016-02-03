@@ -127,21 +127,29 @@ for l = 1:numel(net.layers)
                                  info.support(2,l)) / info.stride(2,l)) + 1 ;
   info.dataSize(3, l+1) = info.dataSize(3,l) ;
   info.dataSize(4, l+1) = info.dataSize(4,l) ;
+  
   switch ly.type
-    case 'conv'
-      if isfield(ly, 'weights')
-        f = ly.weights{1} ;
-      else
-        f = ly.filters ;
-      end
-      if size(f, 3) ~= 0
-        info.dataSize(3, l+1) = size(f,4) ;
-      end
-    case {'loss', 'softmaxloss'}
-      info.dataSize(3:4, l+1) = 1 ;
-    case 'custom'
-      info.dataSize(3,l+1) = NaN ;
+      
+      case 'conv'
+          if isfield(ly, 'weights')
+              f = ly.weights{1} ;
+          else
+              f = ly.filters ;
+          end
+          if size(f, 3) ~= 0
+              info.dataSize(3, l+1) = size(f,4) ;
+          end
+          
+      case 'maxout'
+          info.dataSize(3, l+1) = info.dataSize(3, l)/ly.groupSize;          
+          
+      case {'loss', 'softmaxloss'}
+          info.dataSize(3:4, l+1) = 1 ;
+          
+      case 'custom'
+          info.dataSize(3,l+1) = NaN ;
   end
+  
 end
 
 if nargout == 1, return ; end
