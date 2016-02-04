@@ -339,7 +339,7 @@ for i=1:n
                 % from the net definition (standard maxout)
                 l.groups = [];
             end
-            [res(i+1).x, res(i+1).aux] = vl_nnmaxout(res(i).x, 'groupSize', l.groupSize, 'groups', l.groups);
+            [res(i+1).x, res(i+1).aux] = vl_nnmaxout(res(i).x, 'groupSize', l.groupSize, 'groups', l.groups, 'method', l.method);
             
         case 'bnorm'
             if testMode
@@ -467,7 +467,7 @@ if doder
             
             case 'maxout'   
 
-                res(i).dzdx = vl_nnmaxout(res(i).x, res(i+1).aux, res(i+1).dzdx);      
+                res(i).dzdx = vl_nnmaxout(res(i).x, res(i+1).aux, res(i+1).dzdx, 'method', l.method);      
                 
             case 'bnorm'
                 [res(i).dzdx, dzdw{1}, dzdw{2}, dzdw{3}] = ...
