@@ -398,8 +398,9 @@ if doder
                         
                         varargin_reg = {'regType', opts.regType, 'gpus', opts.gpus};
                         
-                        if strcmp(opts.regType, 'morb') || strcmp(opts.regType, 'sreg')
-                            % multiple orbits grouping
+                        % multiple orbits grouping
+                        regTypeStr = {'dreg-m', 'dreg-mc', 'sreg'};
+                        if any(strcmp(opts.regType, regTypeStr))                            
                             varargin_reg = [varargin_reg{:}, {'groups', l.groups, 'groupSize', l.groupSize}];
                         end
                         
@@ -433,7 +434,7 @@ if doder
                 res(i).dzdx = vl_nnsoftmax(res(i).x, res(i+1).dzdx) ;
                 
             case 'loss'
-                res(i).dzdx = vl_nnloss(res(i).x, l.class, res(i+1).dzdx) ;
+                res(i).dzdx = vl_nnloss(res(i).x, l.class, res(i+1).dzdx);
                 
             case 'softmaxloss'
                 res(i).dzdx = vl_nnsoftmaxloss(res(i).x, l.class, res(i+1).dzdx) ;

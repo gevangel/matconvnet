@@ -13,13 +13,13 @@ opts.useBatchNorm = false ;
 opts.networkType = 'simplenn';
 opts.modelType = 'cnn_1_layer';  
 opts.train = struct();
-opts.numEpochs = 20;
+opts.numEpochs = 50;
 opts.batchSize = 300;
 
 % Regularization
 opts.useReg = true;
 %if opts.useReg
-opts.regType = 'orb'; %'l2';
+opts.regType = 'dreg'; %'l2';
 opts.regParam = 10;
 %end
 
@@ -64,11 +64,12 @@ if opts.useReg
     net.meta.trainOpts.regType = opts.regType;
     net.meta.trainOpts.weightDecay = 0; % zero explicit weight decay
     
-    if strcmp(opts.regType, 'morb') || strcmp(opts.regType, 'sreg')
+    regTypeStr = {'dreg-m', 'dreg-mc', 'sreg'};
+    if any(strcmp(opts.regType, regTypeStr))
         % Parameters for multiple orbits
         n = length(net.layers);
         % groupSize = 5; % same across layers
-        m = 5; % number of orbits: for now same in all layers
+        m = 8; % number of orbits: for now same in all layers
         for l=1:n
             if strcmp(net.layers{l}.type, 'conv') && l~=n-1
                nFiltersLayer = size(net.layers{l}.weights{1}, 4);

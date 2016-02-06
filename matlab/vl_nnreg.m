@@ -14,11 +14,13 @@ function Y = vl_nnreg(varargin)
 %
 %   l1/Sparse:: `l1`
 %
-%   Single Orbit:: `orb`
+%   Single Orbit, All-difs:: `dreg`
 %
-%   Multiple Orbits:: `morb`
+%   Multiple Orbits, All-difs:: `dreg-m`
 %
-%   Multiple Orbits with sum regularizer: `sreg`
+%   Multiple Orbits, All-difs, Cross:: `dreg-mc`
+%
+%   Multiple orbits, Sum regularizer: `sreg`
 
 opts.regType = 'l2';
 opts.gpus = [];
@@ -48,8 +50,8 @@ if isstruct(varargin{1}) % opts.compGrad
             % do nothing for now
             % Yr = Yr + sum(sum(sum(abs(net.layers{1}.weights{1})))); % Frobenius squared
             
-        case 'orb'
-            % Orbit regularizer: only apply on the representation, not the
+        case 'dreg'
+            %% Orbit regularizer: only apply on the representation, not the
             % classifier weights
             for l=1:n
                 
@@ -61,18 +63,18 @@ if isstruct(varargin{1}) % opts.compGrad
                     
                     % vectorize the weight tensor/cube
                     W = reshape(F(:,:,:,:), [weightSize(1)*weightSize(2)*weightSize(3), k]);
-                    Y = Y + regW(W, k, s);
-                    %                     W = reshape(F(:,:,:,:), [filterSize(1)*filterSize(2), filterSize(3), k]);
-                    %                     % iterate over filter dimensions
-                    %                     for d = 1:size(W,2)
-                    %                         Y = Y + regW(squeeze(W(:,d,:)), k, s);
-                    %                     end
-                    
+                    Y = Y + regW(W, k, s); % + regW_nz(W, 10);
+%                     W = reshape(F(:,:,:,:), [filterSize(1)*filterSize(2), filterSize(3), k]);
+%                     % iterate over filter dimensions
+%                     for d = 1:size(W,2)
+%                         Y = Y + regW(squeeze(W(:,d,:)), k, s);
+%                     end
                 end
+                
             end
             
-        case 'morb'
-            % Multiple orbit regularizer
+        case 'dreg-m'
+            %% Multiple orbit regularizer
             Y = 0;
             for l=1:n
                 
@@ -104,8 +106,34 @@ if isstruct(varargin{1}) % opts.compGrad
                 end
             end
             
+        case 'dreg-mc'
+            %% All-diference regularizer, Multiple orbits, Cross
+            Y = 0;
+            for l=1:n
+                if strcmp(net.layers{l}.type, 'conv') && l~=n-1
+                    F = net.layers{l}.weights{1};
+                    weightSize = [size(F,1) size(F,2) size(F,3) size(F,4)];
+                    volWeightTensor = weightSize(1)*weightSize(2)*weightSize(3);
+                    
+                    % vectorize the weight tensor/cube
+                    W = reshape(F, [volWeightTensor, weightSize(4)]);
+                    
+                    % auxiliary matrix
+                    k = net.layers{1}.groupSize;
+                    if ~isempty(opts.gpus) && opts.gpus >= 1
+                        Ik = gpuArray(eye(k));
+                        % Ik = gpuArray.speye(k);
+                    else
+                        Ik = sparse(eye(k)); %Ik = eye(k);
+                    end
+                    E = kron(Ik, ones(k));
+                    
+                    Y = Y + regW_mult_cross(W, net.layers{l}.groups, k, s, E);
+                end
+            end
+            
         case 'sreg'
-            % Multiple orbit regularizer using sum
+            %% Sum regularizer, Multiple orbits, Cross
             Y = 0;
             for l=1:n
                 
@@ -138,7 +166,7 @@ else
         case 'l1'
             %% do nothing for now
             
-        case 'orb'
+        case 'dreg'
             %% (Single/global) orbit regularizer
             F = grad_in;
             weightSize = [size(F,1) size(F,2) size(F,3) size(F,4)];
@@ -164,7 +192,8 @@ else
             
             % iterate over filter dimensions
             for d = 1:weightSize(3)
-                vecG = gradW_opt_1(double(squeeze(W(:,d,:))), k, s, Ik, E, CRt);
+                Wd = double(squeeze(W(:,d,:)));
+                vecG = gradW_opt_1(Wd, k, s, Ik, E, CRt); % + gradW_nz(Wd, k, 10, Ik, R);
                 Y(:,:,d,:) = reshape(vecG, [weightSize(1), weightSize(2), 1, k]);
             end
             % profile viewer
@@ -176,7 +205,7 @@ else
             %    Y = 0;
             %end
             
-        case 'morb'
+        case 'dreg-m'
             %% Multiple orbit regularizer
             F = grad_in;
             
@@ -207,6 +236,45 @@ else
                 Wd = double(squeeze(W(:, d, :)));
                 % iterate over groups
                 vecG = gradW_opt_1_mult(Wd, opts.groups, k, s, Ik, E, CRt);
+                Y(:,:,d,:) = reshape(vecG, [weightSize(1), weightSize(2), 1, k*nGroups]);
+            end
+            
+        case 'dreg-mc'
+            %% All-diference regularizer, Multiple orbits, Cross
+            F = grad_in;
+            weightSize = [size(F,1) size(F,2) size(F,3) size(F,4)];
+            W = reshape(F(:,:,:,:), [weightSize(1)*weightSize(2), weightSize(3), weightSize(4)]);
+            Y = zeros(weightSize(1), weightSize(2), weightSize(3), weightSize(4));
+            k = opts.groupSize;
+            nGroups = length(unique(opts.groups)); % number of orbits in layer
+            
+            % create the auxiliary matrices
+            % TO-DO: this should be external from this function also!
+            [C, R] = gradW_opt_aux(k);
+            T = sparse(genT_opt(k));
+            % auxiliary matrices
+            if ~isempty(opts.gpus) && opts.gpus >= 1
+                C = gpuArray(C);
+                R = gpuArray(R);
+                Ik = gpuArray(eye(k));
+                % Ik = gpuArray.speye(k);
+                Y = gpuArray(Y);
+                T = gpuArray(T);
+            else
+                C = sparse(C);
+                Ik = sparse(eye(k)); %Ik = eye(k);
+                % T = sparse(T); %Ik = eye(k);
+            end
+            E = kron(Ik, ones(k));
+            Ct = C';
+            CRt = R'*C';
+            CTt = T*Ct;
+            varargin_grad = {s, Ik, E, CRt, Ct, CTt};
+            
+            % iterate over filter dimensions
+            for d = 1:weightSize(3)
+                Wd = double(squeeze(W(:, d, :)));
+                vecG = gradW_opt_1_mult_cross(Wd, opts.groups, k, varargin_grad{:});
                 Y(:,:,d,:) = reshape(vecG, [weightSize(1), weightSize(2), 1, k*nGroups]);
             end
             
