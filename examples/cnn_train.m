@@ -41,12 +41,13 @@ opts.cudnn = true ;
 opts.errorFunction = 'multiclass' ;
 opts.errorLabels = {} ;
 opts.plotDiagnostics = false ;
-opts.showPlot = true ;  
+opts.showPlot = true ;
 
 % Regularization
 opts.useReg = false;
 opts.regParam = 0;
 opts.regType = [];
+opts.useWeightNorm = false;
 
 opts = vl_argparse(opts, varargin) ;
 
@@ -163,15 +164,15 @@ for epoch = start+1:opts.numEpochs
         f = char(f) ;
         n = numel(eval(f)) ;
         
-        % debug: keep track of regularization value 
+        % debug: keep track of regularization value
         if opts.useReg
             info.(f).reg(epoch) = stats.(f)(end)/n;
-            stats.(f)(end) = []; 
+            stats.(f)(end) = [];
         end
         
         info.(f).speed(epoch) = n / stats.(f)(1) * max(1, numGpus);
         info.(f).objective(epoch) = stats.(f)(2) / n;
-        info.(f).error(:,epoch) = stats.(f)(3:end) / n;    
+        info.(f).error(:,epoch) = stats.(f)(3:end) / n;
     end
     
     if ~evaluateMode
@@ -182,8 +183,8 @@ for epoch = start+1:opts.numEpochs
     end
     
     %% show/update plot of training progress
-    % TO-DO: make this an opts argument 
-    if opts.showPlot 
+    % TO-DO: make this an opts argument
+    if opts.showPlot
         lw = 2; printFig = true;
         
         figure(1) ; clf ;
@@ -214,13 +215,13 @@ for epoch = start+1:opts.numEpochs
             title('error') ;
         end
         drawnow;
-                
+        
         if printFig
             modelFigPath = fullfile(opts.expDir, 'net-train.pdf') ;
             print(1, modelFigPath, '-dpdf') ;
         end
         
-    end    
+    end
 end
 
 % -------------------------------------------------------------------------
@@ -337,13 +338,13 @@ for t=1:opts.batchSize:numel(subset)
         net.layers{end}.class = labels ;
         if training, dzdy = one; else dzdy = [] ; end
         
-        % additional options for training 
+        % additional options for training
         varargin_simplenn =  {'accumulate', s ~= 1, ...
             'mode', evalMode, ...
             'conserveMemory', opts.conserveMemory, ...
             'backPropDepth', opts.backPropDepth, ...
             'sync', opts.sync, ...
-            'cudnn', opts.cudnn}; 
+            'cudnn', opts.cudnn};
         
         % regularization
         if opts.useReg % isfield(opts, 'regType') && ~isempty(opts.regType)
@@ -353,7 +354,7 @@ for t=1:opts.batchSize:numel(subset)
                 'regParam', opts.regParam, ...
                 'gpus', opts.gpus};
         end
-            
+        
         res = vl_simplenn(net, im, dzdy, res, varargin_simplenn{:});
         
         err_current = [sum(double(gather(res(end).x))); ...
@@ -365,11 +366,11 @@ for t=1:opts.batchSize:numel(subset)
             err_reg = double(gather(res(end).reg));
             err_current = [err_current ; err_reg];
         end
-                         
+        
         % accumulate training errors
-        error = sum([error, err_current], 2);        
+        error = sum([error, err_current], 2);
         numDone = numDone + numel(batch) ;
-    
+        
     end % next sub-batch
     
     % gather and accumulate gradients across labs
@@ -384,8 +385,13 @@ for t=1:opts.batchSize:numel(subset)
             labBarrier() ;
             [net,res] = accumulate_gradients(opts, learningRate, batchSize, net, res, mmap) ;
         end
+        
+        % GE: weight normalization/projected gradient descend
+        if opts.useWeightNorm % opts.useReg && ~strcmp(opts.regType, 'l2')
+            net = normalizeConvWeights(net);
+        end        
     end
-    
+        
     % print learning statistics
     time = toc(start) ;
     stats = sum([stats,[0 ; error]],2); % works even when stats=[]
@@ -426,6 +432,19 @@ if numGpus >= 1
 else
     net_cpu = net ;
 end
+
+% --------------------------------------------------------------------
+function net = normalizeConvWeights(net)
+% --------------------------------------------------------------------
+% weight normalization/projected gradient descend
+
+for l=numel(net.layers)-2:-1:1 % all expect the classifier layer
+    if strcmp(net.layers{l}.type, 'conv')
+        W = net.layers{l}.weights{1};
+        net.layers{l}.weights{1} = bsxfun(@rdivide, W, sqrt(sum(sum(W.^2))));
+    end
+end
+
 
 % -------------------------------------------------------------------------
 function [net,res] = accumulate_gradients(opts, lr, batchSize, net, res, mmap)
@@ -479,7 +498,7 @@ for i=1:numel(net.layers)
     end
 end
 format(end+1,1:3) = {'double', [3 1], 'errors'} ;
-if ~exist(fname) && (labindex == 1)
+if ~exist(fname, 'file') && (labindex == 1)
     f = fopen(fname,'wb') ;
     for g=1:numGpus
         for i=1:size(format,1)
@@ -507,3 +526,4 @@ list = dir(fullfile(modelDir, 'net-epoch-*.mat')) ;
 tokens = regexp({list.name}, 'net-epoch-([\d]+).mat', 'tokens') ;
 epoch = cellfun(@(x) sscanf(x{1}{1}, '%d'), tokens) ;
 epoch = max([epoch 0]) ;
+

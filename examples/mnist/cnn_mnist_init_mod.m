@@ -13,6 +13,8 @@ opts.learningRate = 0.001;
 opts.numEpochs = 20;
 opts.batchSize = 100;
 
+opts.useWeightNorm = false;
+
 opts = vl_argparse(opts, varargin);
 
 rng('default');
@@ -119,7 +121,7 @@ switch opts.modelType
     case 'cnn_1_layer_11'
         % basic 1 layer CNN
         
-        nFilters = 8; % 5
+        nFilters = 25; % 5
         nL1 = 11; nL2 = 9; % receptive field sizes
         net.layers{end+1} = struct('type', 'conv', ...
             'weights', {{f*randn(nL1, nL1, 1, nFilters, 'single'), zeros(1, nFilters, 'single')}}, ...
@@ -140,7 +142,7 @@ switch opts.modelType
     case 'cnn_1_layer_15'
         % basic 1 layer CNN
         
-        nFilters = 48; % 5
+        nFilters = 25; % 5
         nL1 = 15; nL2 = 7; % receptive field sizes
         net.layers{end+1} = struct('type', 'conv', ...
             'weights', {{f*randn(nL1, nL1, 1, nFilters, 'single'), zeros(1, nFilters, 'single')}}, ...
@@ -221,11 +223,34 @@ switch opts.modelType
             'weights', {{f*randn(28, 28, 1, nFilters, 'single'), zeros(1, nFilters, 'single')}}, ...
             'stride', 1, ...
             'pad', 0) ;
+        net.layers{end+1} = struct('type', 'relu') ;
         net.layers{end+1} = struct('type', 'conv', ...
             'weights', {{f*randn(1, 1, nFilters, 10, 'single'), zeros(1, 10,'single')}}, ...
             'stride', 1, ...
             'pad', 0) ;
         net.layers{end+1} = struct('type', 'loss');
+        
+   case 'dnn_2_layer'
+        % 1 hidden layer/perceptron
+        
+        nF1 = 20; %5
+        nF2 = 20;
+        net.layers{end+1} = struct('type', 'conv', ...
+            'weights', {{f*randn(28, 28, 1, nF1, 'single'), zeros(1, nF1, 'single')}}, ...
+            'stride', 1, ...
+            'pad', 0) ;
+        net.layers{end+1} = struct('type', 'relu') ;
+        net.layers{end+1} = struct('type', 'conv', ...
+            'weights', {{f*randn(1, 1, nF1, nF2, 'single'), zeros(1, nF2, 'single')}}, ...
+            'stride', 1, ...
+            'pad', 0) ;
+        net.layers{end+1} = struct('type', 'relu') ;
+        net.layers{end+1} = struct('type', 'conv', ...
+            'weights', {{f*randn(1, 1, nF2, 10, 'single'), zeros(1, 10,'single')}}, ...
+            'stride', 1, ...
+            'pad', 0) ;
+        net.layers{end+1} = struct('type', 'loss');    
+        
 end
 
 
@@ -234,6 +259,11 @@ if opts.useBatchNorm
     net = insertBnorm(net, 1) ;
     net = insertBnorm(net, 4) ;
     net = insertBnorm(net, 7) ;
+end
+
+% optionally normalize the initial convolutional weights
+if opts.useWeightNorm
+    net = normalizeConvWeights(net);     
 end
 
 % Meta parameters
@@ -268,3 +298,15 @@ layer = struct('type', 'bnorm', ...
     'weightDecay', [0 0]) ;
 net.layers{l}.biases = [] ;
 net.layers = horzcat(net.layers(1:l), layer, net.layers(l+1:end)) ;
+
+% --------------------------------------------------------------------
+function net = normalizeConvWeights(net)
+% --------------------------------------------------------------------
+% weight normalization/projected gradient descend
+
+for l=numel(net.layers)-2:-1:1 % all expect the classifier layer
+    if strcmp(net.layers{l}.type, 'conv')
+        W = net.layers{l}.weights{1};
+        net.layers{l}.weights{1} = bsxfun(@rdivide, W, sqrt(sum(sum(W.^2))));
+    end
+end

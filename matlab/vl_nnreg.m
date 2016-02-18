@@ -30,7 +30,7 @@ opts.groups = [];
 opts.groupSize = [];
 
 opts = vl_argparse(opts, varargin(2:end));
-s = 0.01; % orbit reg. parameter
+s = eps; %0.001; % orbit reg. parameter
 
 if isstruct(varargin{1}) % opts.compGrad
     
@@ -63,7 +63,7 @@ if isstruct(varargin{1}) % opts.compGrad
                     
                     % vectorize the weight tensor/cube
                     W = reshape(F(:,:,:,:), [weightSize(1)*weightSize(2)*weightSize(3), k]);
-                    Y = Y + regW(W, k, s); % + regW_nz(W, 10);
+                    Y = Y + regW(W, k, s); % + regW_nz(W, k, 10);
 %                     W = reshape(F(:,:,:,:), [filterSize(1)*filterSize(2), filterSize(3), k]);
 %                     % iterate over filter dimensions
 %                     for d = 1:size(W,2)

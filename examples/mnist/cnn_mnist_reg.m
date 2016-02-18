@@ -21,6 +21,7 @@ opts.useReg = true;
 %if opts.useReg
 opts.regType = 'dreg'; %'l2';
 opts.regParam = 10;
+opts.useWeightNorm = false;
 %end
 
 opts = vl_argparse(opts, varargin);
@@ -53,9 +54,15 @@ varargin_init =  {'useBatchNorm', opts.useBatchNorm, ...
     'networkType', opts.networkType, ...
     'modelType', opts.modelType, ...
     'numEpochs', opts.numEpochs, ...
-    'batchSize', opts.batchSize};
+    'batchSize', opts.batchSize, ...
+    'useWeightNorm', opts.useWeightNorm};
 
 net = cnn_mnist_init_mod(varargin_init{:});
+
+% Weight normalization
+if opts.useWeightNorm
+    net.meta.trainOpts.useWeightNorm = opts.useWeightNorm; % conv weight normalization 
+end
 
 % Regularization
 if opts.useReg
@@ -69,7 +76,7 @@ if opts.useReg
         % Parameters for multiple orbits
         n = length(net.layers);
         % groupSize = 5; % same across layers
-        m = 8; % number of orbits: for now same in all layers
+        m = 5; % number of orbits: for now same in all layers
         for l=1:n
             if strcmp(net.layers{l}.type, 'conv') && l~=n-1
                nFiltersLayer = size(net.layers{l}.weights{1}, 4);
