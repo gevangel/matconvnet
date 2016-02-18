@@ -43,6 +43,16 @@ switch dataType
   case 'single', toClass = @(x) single(x) ;
 end
 
+if isa(X,'gpuArray')
+  dataType = classUnderlying(X) ;
+else
+  dataType = class(X) ;
+end
+switch dataType
+  case 'double', toClass = @(x) double(x) ;
+  case 'single', toClass = @(x) single(x) ;
+end
+
 % one label per spatial location
 sz_ = [size(c,1) size(c,2) size(c,3) size(c,4)] ;
 assert(isequal(sz_, [sz(1) sz(2) sz_(3) sz(4)])) ;

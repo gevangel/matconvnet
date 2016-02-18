@@ -167,7 +167,6 @@ for epoch=start+1:opts.numEpochs
         fprintf('%s: model saved in %.2g s\n', mfilename, toc) ;
     end
     
-    
     if opts.plotStatistics
         switchfigure(1) ; clf ;
         subplot(1,1+hasError,1) ;
@@ -339,7 +338,6 @@ for t=1:opts.batchSize:numel(subset)
             [net,res] = accumulate_gradients(opts, learningRate, batchSize, net, res, mmap) ;
         end
     end
-    
     
     % collect and print learning statistics
     time = toc(start) ;

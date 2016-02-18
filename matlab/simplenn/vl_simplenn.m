@@ -489,5 +489,6 @@ if doder
         if gpuMode && opts.sync
             wait(gpuDevice) ;
         end
+        res(i).backwardTime = toc(res(i).backwardTime) ;
     end
 end
