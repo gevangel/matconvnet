@@ -9,7 +9,7 @@ opts.expDir = fullfile('data','mnist-baseline');
 
 opts.dataDir = 'data/mnist';
 opts.imdbPath = fullfile(opts.expDir, 'imdb.mat');
-opts.useBatchNorm = false ;
+opts.batchNormalization = false ;
 opts.networkType = 'simplenn';
 opts.modelType = 'cnn_1_layer';  
 opts.train = struct();
@@ -50,7 +50,7 @@ end
 % --------------------------------------------------------------------
 
 % additional options for initialization
-varargin_init =  {'useBatchNorm', opts.useBatchNorm, ...
+varargin_init =  {'batchNormalization', opts.batchNormalization, ...
     'networkType', opts.networkType, ...
     'modelType', opts.modelType, ...
     'numEpochs', opts.numEpochs, ...

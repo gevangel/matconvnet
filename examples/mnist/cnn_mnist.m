@@ -4,13 +4,18 @@ function [net, info] = cnn_mnist(varargin)
 run(fullfile(fileparts(mfilename('fullpath')),...
     '..', '..', 'matlab', 'vl_setupnn.m')) ;
 
-opts.expDir = fullfile('data','mnist-baseline') ;
+opts.batchNormalization = false ;
+opts.networkType = 'simplenn' ;
 [opts, varargin] = vl_argparse(opts, varargin) ;
 
-opts.dataDir = 'data/mnist' ;
+sfx = opts.networkType ;
+if opts.batchNormalization, sfx = [sfx '-bnorm'] ; end
+opts.expDir = fullfile(vl_rootnn, 'data', ['mnist-baseline' sfx]) ;
+[opts, varargin] = vl_argparse(opts, varargin) ;
+
+opts.dataDir = fullfile(vl_rootnn, 'data', 'mnist') ;
 opts.imdbPath = fullfile(opts.expDir, 'imdb.mat');
-opts.useBatchNorm = false ;
-opts.networkType = 'simplenn';
+
 opts.train = struct();
 opts.numEpochs = 20;
 
@@ -33,7 +38,7 @@ end
 %                                                       Initialize net
 % --------------------------------------------------------------------
 
-net = cnn_mnist_init('useBatchNorm', opts.useBatchNorm, ...
+net = cnn_mnist_init('batchNormalization', opts.batchNormalization, ...
     'numEpochs', opts.numEpochs, ...
     'networkType', opts.networkType) ;
 

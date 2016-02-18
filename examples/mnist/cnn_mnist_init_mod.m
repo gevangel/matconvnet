@@ -4,7 +4,7 @@ function net = cnn_mnist_init_mod(varargin)
 % Modified from original matconvnet distribution: cnn_mnist_init.m
 % TO-DO: merge/replace main cnn_mnist_init.m
 
-opts.useBatchNorm = true;
+opts.batchNormalization = true;
 opts.networkType = 'simplenn';
 opts.modelType = 'simple'; % 'lenet_base';
 
@@ -255,10 +255,17 @@ end
 
 
 % optionally switch to batch normalization
-if opts.useBatchNorm
-    net = insertBnorm(net, 1) ;
-    net = insertBnorm(net, 4) ;
-    net = insertBnorm(net, 7) ;
+if opts.batchNormalization
+    nLayers = numel(net.layers);
+    l = 1;
+    while l <= nLayers - 2 % look for conv layers to all but classifier
+        if strcmp(net.layers{l}.type, 'conv')
+            net = insertBnorm(net, l);
+            l = l + 1;
+            nLayers = nLayers + 1;
+        end
+        l = l + 1;
+    end
 end
 
 % optionally normalize the initial convolutional weights
@@ -272,7 +279,7 @@ net.meta.trainOpts.learningRate = opts.learningRate;
 net.meta.trainOpts.numEpochs = opts.numEpochs;
 net.meta.trainOpts.batchSize = opts.batchSize;
 
-% Fill in defaul values
+% Fill in default values
 net = vl_simplenn_tidy(net) ;
 
 % Switch to DagNN if requested
