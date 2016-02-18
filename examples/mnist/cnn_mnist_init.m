@@ -39,7 +39,7 @@ net.layers{end+1} = struct('type', 'conv', ...
 net.layers{end+1} = struct('type', 'loss') ;
 
 % optionally switch to batch normalization
-if opts.useBatchNorm
+if opts.batchNormalization
   net = insertBnorm(net, 1) ;
   net = insertBnorm(net, 4) ;
   net = insertBnorm(net, 7) ;
