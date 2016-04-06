@@ -1,8 +1,8 @@
 function test_examples()
 %TEST_EXAMPLES  Test some of the examples in the `examples/` directory
 
-addpath examples/mnist ;
-addpath examples/cifar ;
+addpath ../examples/mnist ;
+addpath ../examples/cifar ;
 
 trainOpts.gpus = [] ;
 trainOpts.continue = true ;

@@ -1,6 +1,6 @@
 function net = cnn_mnist_init(varargin)
-% CNN_MNIST_LENET Initialize a CNN similar for MNIST
-opts.batchNormalization = true ;
+% CNN_MNIST_INIT Initialize a CNN, similar to LeNet, for MNIST
+opts.useBatchNorm = true ;
 opts.networkType = 'simplenn' ;
 opts = vl_argparse(opts, varargin) ;
 
@@ -36,7 +36,7 @@ net.layers{end+1} = struct('type', 'conv', ...
                            'weights', {{f*randn(1,1,500,10, 'single'), zeros(1,10,'single')}}, ...
                            'stride', 1, ...
                            'pad', 0) ;
-net.layers{end+1} = struct('type', 'softmaxloss') ;
+net.layers{end+1} = struct('type', 'loss') ;
 
 % optionally switch to batch normalization
 if opts.batchNormalization
@@ -46,7 +46,7 @@ if opts.batchNormalization
 end
 
 % Meta parameters
-net.meta.inputSize = [27 27 1] ;
+net.meta.inputSize = [28 28 1] ;
 net.meta.trainOpts.learningRate = 0.001 ;
 net.meta.trainOpts.numEpochs = 20 ;
 net.meta.trainOpts.batchSize = 100 ;

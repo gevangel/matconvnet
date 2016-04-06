@@ -10,7 +10,7 @@ from the example code included in the [quickstart guide](quick.md).
 >
 > 1.  Images need to be pre-processed (resized and cropped) before
 >     being submitted to a CNN for evaluation. Even small differences
->     in the prepreocessing details can have a non-negligible effect
+>     in the preprocessing details can have a non-negligible effect
 >     on the results.
 >
 > 2.  The example below shows how to evaluate a CNN, but does not
@@ -66,7 +66,7 @@ PASCAL VOC category definitions.
     - [pascal-fcn8s-dag](models/pascal-fcn8s-dag.mat) [<i class="fa fa-file-image-o"></i>](models/pascal-fcn8s-dag.svg)
 
     These networks are trained on the PASCAL VOC 2011 training and (in
-    part) validation data, using Berekely's extended annotations
+    part) validation data, using Berkeley's extended annotations
     ([SBD](http://www.cs.berkeley.edu/~bharath2/codes/SBD/download.html)).
 
     The performance measured on the PASCAL VOC 2011 validation data

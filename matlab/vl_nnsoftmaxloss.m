@@ -26,11 +26,21 @@ function Y = vl_nnsoftmaxloss(X,c,dzdy)
 sz = [size(X,1) size(X,2) size(X,3) size(X,4)] ;
 
 if numel(c) == sz(4)
-  % one label per image
-  c = reshape(c, [1 1 1 sz(4)]) ;
+    % one label per image
+    c = reshape(c, [1 1 1 sz(4)]) ;
 end
-if size(c,1) == 1 & size(c,2) == 1
-  c = repmat(c, [sz(1) sz(2)]) ;
+if size(c,1) == 1 && size(c,2) == 1
+    c = repmat(c, [sz(1) sz(2)]) ;
+end
+
+if isa(X,'gpuArray')
+  dataType = classUnderlying(X) ;
+else
+  dataType = class(X) ;
+end
+switch dataType
+  case 'double', toClass = @(x) double(x) ;
+  case 'single', toClass = @(x) single(x) ;
 end
 
 if isa(X,'gpuArray')
