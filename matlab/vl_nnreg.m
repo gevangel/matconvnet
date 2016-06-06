@@ -30,7 +30,7 @@ opts.groups = [];
 opts.groupSize = [];
 
 opts = vl_argparse(opts, varargin(2:end));
-s = eps; %0.001; % orbit reg. parameter
+s = 0.0001; % eps; orbit reg. parameter
 
 if isstruct(varargin{1}) % opts.compGrad
     
@@ -63,7 +63,7 @@ if isstruct(varargin{1}) % opts.compGrad
                     
                     % vectorize the weight tensor/cube
                     W = reshape(F(:,:,:,:), [weightSize(1)*weightSize(2)*weightSize(3), k]);
-                    Y = Y + regW(W, k, s); % + regW_nz(W, k, 10);
+                    Y = Y + regW_fixed(W, k, s); % + regW_nz(W, k, 10);
 %                     W = reshape(F(:,:,:,:), [filterSize(1)*filterSize(2), filterSize(3), k]);
 %                     % iterate over filter dimensions
 %                     for d = 1:size(W,2)
@@ -94,13 +94,14 @@ if isstruct(varargin{1}) % opts.compGrad
                         Ik = sparse(eye(k)); %Ik = eye(k);
                     end
                     E = kron(Ik, ones(k));
+                    kE_term = (k*E - 1 - 0.5*(k-1)*eye(k^2));
                     
                     % vectorize the weight tensor/cube
                     W = reshape(F, [volWeightTensor, weightSize(4)]);
                     
                     % sum over each groups/orbits
                     for g=nGroups
-                        Y = Y + regW(W(:, net.layers{l}.groups==g), k, s, E);
+                        Y = Y + regW_fixed(W(:, net.layers{l}.groups==g), k, s, kE_term);
                     end
                     % Y = regW_mult(W, net.layers{l}.groups, k, s, E);
                 end
@@ -192,8 +193,8 @@ else
             
             % iterate over filter dimensions
             for d = 1:weightSize(3)
-                Wd = double(squeeze(W(:,d,:)));
-                vecG = gradW_opt_1(Wd, k, s, Ik, E, CRt); % + gradW_nz(Wd, k, 10, Ik, R);
+                Wd = double(squeeze(W(:,d,:)));                       
+                vecG = gradW_opt_1_fixed(Wd, k, s, Ik, E, CRt); % + gradW_nz(Wd, k, 10, Ik, R);
                 Y(:,:,d,:) = reshape(vecG, [weightSize(1), weightSize(2), 1, k]);
             end
             % profile viewer

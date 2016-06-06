@@ -42,7 +42,6 @@ opts.errorFunction = 'multiclass' ;
 opts.errorLabels = {} ;
 opts.plotDiagnostics = false ;
 opts.plotStatistics = true;
-% opts.showPlot = true ;
 
 % Regularization
 opts.useReg = false;

@@ -34,15 +34,24 @@ if ~isfield(opts.train, 'gpus'), opts.train.gpus = []; end;
 % --------------------------------------------------------------------
 
 if exist(opts.imdbPath, 'file')
-    imdb = load(opts.imdbPath) ;
+    imdb = load(opts.imdbPath); 
+    % set validation set size: first 10K images for MNIST      
+    if strfind(opts.imdbPath, '/mnist/')
+        imdb.images.set(1:10000) = 2;
+    end
 else
-    % imdb = getMnistImdb(opts) ; % MNIST  
-    % mkdir(opts.expDir);
-    imdb = getRotMnistImdb(opts); % Rotated MNIST  
+    if strfind(opts.imdbPath, '/mnist/')
+        imdb = getMnistImdb(opts); % MNIST        
+    elseif strfind(opts.imdbPath, '/affmnist/')
+        imdb = getAffMnistImdb(opts, 0.02); % Affine MNIST
+    else        
+        imdb = getRotMnistImdb(opts); % Rotated MNIST
+    end
     if ~exist(fileparts(opts.imdbPath), 'dir')
         mkdir(fileparts(opts.imdbPath));
     end
-    save(opts.imdbPath, '-struct', 'imdb') ;
+    % mkdir(opts.expDir);
+    save(opts.imdbPath, '-struct', 'imdb');
 end
 
 % --------------------------------------------------------------------

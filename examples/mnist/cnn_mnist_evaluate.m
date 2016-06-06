@@ -21,7 +21,7 @@ opts.train.gpus = [];
 opts.train.continue = false;
 opts.train.prefetch = true;
 opts.train.expDir = opts.expDir;
-opts.train.showPlot = false; 
+opts.train.plotStatistics = false; 
 
 opts = vl_argparse(opts, varargin) ;
 display(opts);
