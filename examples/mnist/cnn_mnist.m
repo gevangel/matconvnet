@@ -1,5 +1,5 @@
 function [net, info] = cnn_mnist(varargin)
-% CNN_MNIST Demonstrated MatConvNet on MNIST
+%CNN_MNIST  Demonstrates MatConvNet on MNIST
 
 run(fullfile(fileparts(mfilename('fullpath')),...
     '..', '..', 'matlab', 'vl_setupnn.m')) ;
@@ -10,13 +10,13 @@ opts.networkType = 'simplenn' ;
 
 sfx = opts.networkType ;
 if opts.batchNormalization, sfx = [sfx '-bnorm'] ; end
-opts.expDir = fullfile(vl_rootnn, 'data', ['mnist-baseline' sfx]) ;
+opts.expDir = fullfile(vl_rootnn, 'data', ['mnist-baseline-' sfx]) ;
 [opts, varargin] = vl_argparse(opts, varargin) ;
 
 opts.dataDir = fullfile(vl_rootnn, 'data', 'mnist') ;
 opts.imdbPath = fullfile(opts.expDir, 'imdb.mat');
+opts.train = struct(); 
 
-opts.train = struct();
 opts.numEpochs = 20;
 
 opts = vl_argparse(opts, varargin);

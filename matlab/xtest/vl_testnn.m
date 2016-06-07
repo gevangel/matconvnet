@@ -7,6 +7,12 @@ function vl_testnn(varargin)
 %  `gpu`:: false
 %    Run the GPU tests.
 %
+%  `single`:: true
+%    Perform tests in single precision.
+%
+%  `double`:: false
+%    Perform tests in double precision.
+%
 %  `command`:: 'nn'
 %    Run only tests which name starts with the specified substring.
 %    E.g. `vl_testnn('command', 'nnloss') would run only the nnloss tests.
@@ -43,16 +49,16 @@ import matlab.unittest.plugins.ToFile;
 
 % Choose which tests to run
 sel = HasName(StartsWithSubstring(opts.command)) ;
-if opts.cpu & ~opts.gpu
+if opts.cpu && ~opts.gpu
   sel = sel & HasName(ContainsSubstring('cpu')) ;
 end
-if opts.gpu & ~opts.cpu
+if opts.gpu && ~opts.cpu
   sel = sel & HasName(ContainsSubstring('gpu')) ;
 end
-if opts.single & ~opts.double
+if opts.single && ~opts.double
   sel = sel & HasName(ContainsSubstring('single')) ;
 end
-if opts.double & ~opts.single
+if opts.double && ~opts.single
   sel = sel & HasName(ContainsSubstring('double')) ;
 end
 
