@@ -16,9 +16,6 @@ opts.expDir = fullfile(vl_rootnn, 'data', ['mnist-baseline-' sfx]) ;
 opts.dataDir = fullfile(vl_rootnn, 'data', 'mnist') ;
 opts.imdbPath = fullfile(opts.expDir, 'imdb.mat');
 opts.train = struct(); 
-
-opts.numEpochs = 20;
-
 opts = vl_argparse(opts, varargin);
 if ~isfield(opts.train, 'gpus'), opts.train.gpus = []; end;
 
@@ -58,7 +55,7 @@ end
     'expDir', opts.expDir, ...
     net.meta.trainOpts, ...
     opts.train, ...
-    'val', find(imdb.images.set == 3)) ;
+    'val', find(imdb.images.set == 2)) ;
 
 % --------------------------------------------------------------------
 function fn = getBatch(opts)

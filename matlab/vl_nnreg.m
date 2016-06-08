@@ -30,7 +30,12 @@ opts.groups = [];
 opts.groupSize = [];
 
 opts = vl_argparse(opts, varargin(2:end));
-s = 0.0001; % eps; orbit reg. parameter
+
+if ~strcmp(opts.regType, 'l2') || ~strcmp(opts.regType, 'l1')
+    % (default) orbit regularization parameter
+    % T0-DO: provide externally
+    s = 0.0001; % eps;
+end
 
 if isstruct(varargin{1}) % opts.compGrad
     
@@ -97,13 +102,14 @@ if isstruct(varargin{1}) % opts.compGrad
                     kE_term = (k*E - 1 - 0.5*(k-1)*eye(k^2));
                     
                     % vectorize the weight tensor/cube
-                    W = reshape(F, [volWeightTensor, weightSize(4)]);
-                    
+                    W = reshape(F, [volWeightTensor, weightSize(4)]);                   
+                                    
                     % sum over each groups/orbits
                     for g=nGroups
                         Y = Y + regW_fixed(W(:, net.layers{l}.groups==g), k, s, kE_term);
                     end
-                    % Y = regW_mult(W, net.layers{l}.groups, k, s, E);
+                    Y = Y/length(nGroups);                    
+                    % Y1 = regW_mult(W, net.layers{l}.groups, k, s, E);
                 end
             end
             
@@ -238,8 +244,9 @@ else
                 % iterate over groups
                 vecG = gradW_opt_1_mult(Wd, opts.groups, k, s, Ik, E, CRt);
                 Y(:,:,d,:) = reshape(vecG, [weightSize(1), weightSize(2), 1, k*nGroups]);
-            end
-            
+            end            
+            % Y = Y/length(nGroups);                    
+              
         case 'dreg-mc'
             %% All-diference regularizer, Multiple orbits, Cross
             F = grad_in;

@@ -345,17 +345,14 @@ for t=1:opts.batchSize:numel(subset)
     res = vl_simplenn(net, im, dzdy, res, varargin_simplenn{:});  
        
     % accumulate errors
-    err_batch = [...
-        sum(double(gather(res(end).x))) ;
-        reshape(opts.errorFunction(opts, labels, res),[],1) ; ];
-    
-    % GE: regularizer 'error'
-    if opts.useReg
-        err_batch = [err_batch ; double(gather(res(end).reg))];
+    error_c = [sum(double(gather(res(end).x))) ; reshape(opts.errorFunction(opts, labels, res),[],1)];
+    if opts.useReg              
+        % GE: regularizer 'error'
+        error = [sum([error(1:end-1), error_c], 2); double(gather(res(end).reg))];        
+    else
+        error = sum([error, error_c], 2) ;
     end
-    
-    error = sum([error, err_batch], 2) ;
-            
+              
   end
 
   % accumulate gradient
@@ -388,7 +385,7 @@ for t=1:opts.batchSize:numel(subset)
   
   % GE debug: keep track of regularization value
   if opts.useReg
-      stats.reg = error(end) / num;
+      stats.reg = error(end);
       % error(end) = [];
   end  
 

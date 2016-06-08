@@ -1,5 +1,5 @@
 function [net, info] = cnn_mnist_reg(varargin)
-% CNN_MNIST Demonstrated MatConvNet on MNIST
+% CNN_MNIST Demonstrates MatConvNet on MNIST
 
 %run(fullfile(fileparts(mfilename('fullpath')),...
 %    '..', '..', 'matlab', 'vl_setupnn.m')) ;

@@ -54,7 +54,7 @@ if ~iscell(args), args = {args} ; end
 
 recursive = true ;
 if numel(varargin) == 1
-  if strcmp(lower(varargin{1}), 'nonrecursive') ;
+  if strcmpi(varargin{1}, 'nonrecursive') ;
     recursive = false ;
   else
     error('Unknown option specified.') ;
@@ -86,7 +86,7 @@ while ai <= numel(args)
     continue ;
   end
 
-  if ~isstr(args{ai})
+  if ~ischar(args{ai})
     error('Expected either a param-value pair or a structure.') ;
   end
 

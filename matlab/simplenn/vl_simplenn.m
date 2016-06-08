@@ -334,6 +334,7 @@ for i=1:n
       if opts.useReg
            res(i+1).reg = vl_nnreg(net, 'regType', opts.regType, 'gpus', opts.gpus);
            res(i+1).x = res(i+1).x + opts.regParam * res(i+1).reg;
+           % res(i+1).x = res(i+1).x + opts.regParam * res.reg(i+1);
       end
       
     case 'softmaxloss'
@@ -346,7 +347,6 @@ for i=1:n
           res(i+1).x = res(i+1).x + opts.regParam * res(i+1).reg;
       end
       
-
     case 'relu'
       if l.leak > 0, leak = {'leak', l.leak} ; else leak = {} ; end
       res(i+1).x = vl_nnrelu(res(i).x,[],leak{:}) ;
@@ -436,13 +436,13 @@ if doder
               l.opts{:}, ...
               cudnn{:}) ;
           
-          % Regularization/Weight Gradient (only on the weights/not biases)
+          % Regularization/Weight Gradient (only on the weights dzdw{1}, not biases dzdw{2})
           if opts.useReg
               if strcmp(opts.regType, 'l2') || i~=n-1 % for sym reg. not on the classifier, i.e. penultimate layer
                   
                   varargin_reg = {'regType', opts.regType, 'gpus', opts.gpus};
                   
-                  % multiple orbits grouping
+                  % multiple orbits 
                   regTypeStr = {'dreg-m', 'dreg-mc', 'sreg'};
                   if any(strcmp(opts.regType, regTypeStr))
                       varargin_reg = [varargin_reg{:}, {'groups', l.groups, 'groupSize', l.groupSize}];
@@ -450,8 +450,10 @@ if doder
                   
                   dzdw_reg = vl_nnreg(l.weights{1}, varargin_reg{:});
                   
-                  % multiply by batch size: gradient vector is divided by it during weight update
-                  dzdw{1} =  dzdw{1} + opts.regParam*net.meta.trainOpts.batchSize*dzdw_reg;
+                  % multiply by batch size (??): gradient vector for weight
+                  % update is computed by the average across all batches 
+                  % dzdw{1} =  dzdw{1} + opts.regParam*net.meta.trainOpts.batchSize*dzdw_reg;
+                  dzdw{1} =  dzdw{1} + opts.regParam*dzdw_reg;
               end
           end
            
@@ -510,7 +512,7 @@ if doder
                                      'mask', res(i+1).aux) ;
         end
         
-       case 'maxout'                
+      case 'maxout'                
           res(i).dzdx = vl_nnmaxout(res(i).x, res(i+1).aux, res(i+1).dzdx, 'method', l.method);
             
       case 'bnorm'

@@ -188,8 +188,7 @@ switch opts.modelType
             'pad', 0) ;
         net.layers{end+1} = struct('type', 'loss') ;
         
-        
-        
+            
      case 'cnn_1_layer_11_mpool'
         % basic 1 layer CNN with max pooling over groups of neurons (ala
         % maxout)
